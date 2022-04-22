@@ -25,9 +25,9 @@ jobs:
         - frontend
         include:
         - image: frontend
-          context: docker/frontend-beta
+          context: docker/frontend
           dockerfile: Dockerfile
-          image-name: quay.io/nikita_akuity/frontend-beta
+          image-name: quay.io/nikita_akuity/some-frontend
           platforms: linux/amd64,linux/arm64
   
     runs-on: ubuntu-latest
