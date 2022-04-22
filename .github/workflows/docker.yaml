@@ -3,13 +3,33 @@ on:
   pull_request:
     branches: ['main']  
   push:
-    branches: ['main']
+    branches: ['main', 'feature/*', 'hotfix/*']
     tags: ['v[0-9]+.[0-9]+.[0-9]+*']
     paths: ['docker/**']
   workflow_dispatch: {}
 
 jobs:
   docker:
+    concurrency:
+      # If a previous run is ongoing with the same head_ref (it's a run on the
+      # same PR) then cancel it to save time. If it isn't a PR, only cancel the
+      # previous run if it's on the same commit SHA. This prevents a run for a
+      # commit push from cancelling a previous commit push's build, since we
+      # want an image built and tagged for each commit.
+      group: build-images-${{ matrix.image }}-${{ github.head_ref || github.sha }}
+      cancel-in-progress: true
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+        - frontend
+        include:
+        - image: frontend
+          context: docker/frontend-beta
+          dockerfile: Dockerfile
+          image-name: quay.io/nikita_akuity/frontend-beta
+          platforms: linux/amd64,linux/arm64
+  
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -19,23 +39,31 @@ jobs:
         uses: docker/metadata-action@v3
         id: meta
         with:
-          images: quay.io/nikita_akuity/frontend-beta
+          images: ${{ matrix.image-name }}
           tags: |
-            type=schedule,pattern={{date 'YYYYMMDDHHmm'}}
-            type=semver,pattern={{version}}
             type=ref,event=branch
             type=ref,event=pr
+            type=schedule,pattern={{date 'YYYYMMDDHHmm'}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha
       - name: Login to Quay.io
         uses: docker/login-action@v1
         with:
           registry: quay.io
           username: ${{ secrets.QUAY_USERNAME }}
           password: ${{ secrets.QUAY_PASSWORD }}
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+        with:
+          platforms: ${{ matrix.platforms }}
       - name: Build and push
         uses: docker/build-push-action@v2
         with:
-          context: docker/frontend-beta
-          push: true
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          platforms: ${{ matrix.platforms }}
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=docker/frontend-beta:main
