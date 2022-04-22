@@ -2,9 +2,10 @@ name: Docker build
 on:
   push:
     paths:
-    - docker/frontend-beta
+    - 'docker/**'
     branches:
     - main
+  workflow_dispatch: {}
 
 jobs:
   docker:
