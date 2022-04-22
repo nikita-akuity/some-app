@@ -1,0 +1,23 @@
+name: Docker build
+on:
+  push:
+    paths:
+    - docker/frontend-beta
+    branches:
+    - main
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - name: Kaniko build
+        uses: aevea/action-kaniko@master
+        with:
+          image: nikita_akuity/frontend-beta
+          path: docker/frontend-beta
+          registry: quay.io
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_PASSWORD }}
+          cache: true
+          cache_registry: nikita_akuity/cache
