@@ -1,24 +1,36 @@
 name: Docker build
 on:
+  pull_request:
+    branches: ['main']  
   push:
-    paths:
-    - 'docker/**'
-    branches:
-    - main
+    branches: ['main']
+    tags: ['v[0-9]+.[0-9]+.[0-9]+*']
+    paths: ['docker/**']
   workflow_dispatch: {}
 
 jobs:
   docker:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@master
-      - name: Kaniko build
-        uses: aevea/action-kaniko@master
+      - uses: actions/checkout@v2
+      - uses: docker/metadata-action@v3
+        id: meta
         with:
-          image: nikita_akuity/frontend-beta
-          path: docker/frontend-beta
+          images: quay.io/nikita_akuity/frontend-beta
+          tags: |
+            type=schedule,pattern={{date 'YYYYMMDDHHmm'}}
+            type=semver,pattern={{version}}
+            type=ref,event=branch
+            type=ref,event=pr
+      - uses: docker/login-action@v1
+        with:
           registry: quay.io
           username: ${{ secrets.QUAY_USERNAME }}
           password: ${{ secrets.QUAY_PASSWORD }}
-          cache: true
-          cache_registry: nikita_akuity/cache
+      - name: Kaniko build & push
+        uses: bymarshall/kaniko-action@main
+        with:
+          context: docker/frontend-beta
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
