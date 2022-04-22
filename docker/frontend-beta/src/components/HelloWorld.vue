@@ -22,10 +22,6 @@
 <script>
 
 export default {
-  name: 'HelloWorld',
-
-  data: () => ({
-    someList: []
-  }),
+  name: 'HelloWorld'
 }
 </script>
